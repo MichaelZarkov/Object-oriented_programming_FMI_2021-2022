@@ -1,127 +1,108 @@
-# Колекция от обекти в полиморфна йерархия
+# Множествено наследяване
+Множественото наследяване позволява един клас да наследи множество класове.
 
-Можем да реализираме хетерогенна колекция (от различни типове  **с общ базов клас**) чрез масив от указатели. Указателите трябва да са от типа на базовия клас.
+![alt_text](https://github.com/MariaGrozdeva/Object-oriented_programming_FMI/blob/main/Sem_13/images/Multiple_Inheritance.png)
+
+### Конструктори и деструктори при множествено наследяване:
 ```c++
-struct Dog
+struct MyClass : SuperClass1, SuperClass2, SuperClass3, SuperClass4
 {
-	virtual void printBreed() const = 0;
-	virtual ~Dog() {}
-};
-
-struct GoldenRetriever : Dog
-{
-	virtual void printBreed() const override
+	MyClass()
 	{
-		std::cout << "My breed is Golden Retriever!" << std::endl;
+		std::cout << "MyClass()" << std::endl;
 	}
-};
-struct Huskita : Dog
-{
-	virtual void printBreed() const override
+	~MyClass()
 	{
-		std::cout << "My breed is Huskita!" << std::endl;
-	}
-};
-struct Poodle : Dog
-{
-	virtual void printBreed() const override
-	{
-		std::cout << "My breed is Poodle!" << std::endl;
+		std::cout << "~MyClass()" << std::endl;
 	}
 };
 
-class DogsCollection
+int main()
 {
-private:
-	Dog** dogs;
-
-	size_t capacity;
-	size_t count;
-
-	void copyFrom(const DogsCollection& other);
-	void free();
-
-public:
-	DogsCollection();
-	DogsCollection(const DogsCollection&);
-	DogsCollection& operator=(const DogsCollection&);
-	~DogsCollection();
-
-	void addGoldenRetriever();
-	void addHuskita();
-	void addPoodle();
-};
-
-void DogsCollection::addGoldenRetriever()
-{
-	dogs[count++] = new GoldenRetriever();
-}
-void DogsCollection::addHuskita()
-{
-	dogs[count++] = new Huskita();
-}
-void DogsCollection::addPoodle()
-{
-	dogs[count++] = new Poodle();
+	MyClass obj;
 }
 ```
 
-## Триене
+![alt_text](https://github.com/MariaGrozdeva/Object-oriented_programming_FMI/blob/main/Sem_13/images/ConstrDestr-Multiple_Inheritance.png)
 
-Понеже имаме виртуален деструктор в базовия клас, не се интересуваме какви са обектите, които трием от колекцията.
+### Копиране при множествено наследяване:
 ```c++
-void DogsCollection::free()
+MyClass(const MyClass& other) : SuperClass1(other), SuperClass2(other), SuperClass3(other), SuperClass4(other)
 {
-	for (size_t i = 0; i < count; i++)
-		delete dogs[i];
-	delete[] dogs;
+	copyFrom(other);
+}
+
+MyClass(const MyClass& other)
+{
+	if (this != &other)
+	{
+		SuperClass1::operator=(other);
+		SuperClass2::operator=(other);
+		SuperClass3::operator=(other);
+		SuperClass4::operator=(other);
+
+		free();
+		copyFrom(other);
+	}
 }
 ```
 
-## Копиране
+## Диамантен проблем
+![alt_text](https://github.com/MariaGrozdeva/Object-oriented_programming_FMI/blob/main/Sem_13/images/Diamond.jpg)
 
-Искаме да реализираме копиране на колекцията. Това трябва да стане без да нарушаваме абстракцията - искаме обеките да се копират без да се налага да преглеждаме типовете им. Затова дефинираме виртуална функция clone, която ще връща копие на обекта. Тази функция я разписваме във всеки от наследниците.
+**Проблем**: Многократно наследяване на базов клас – нееднозначност при използване на данните му. В класа **D** има два обекта от тип **A**.
+
+Ако действително желаното поведението е да имаме два различни обекта от тип А в класа D, то при използване на данните на А задължително трябва да посочим тези от кой родител използваме:
+
 ```c++
-struct Dog
-{
-	// ...
-	virtual ~Dog() {}
-	virtual Dog* clone() const = 0;
-};
+struct A { int a = 4; };
+struct B : A {};
+struct C : A {};
 
-struct GoldenRetriever : Dog
+struct D : B, C 
 {
-	// ...
-	virtual Dog* clone() const override
+	void f()
 	{
-		return new GoldenRetriever(*this);
+		B::a++; // OK! No ambiguity!
 	}
 };
-struct Huskita : Dog
+```
+
+В повечето случаи, обаче, това, което искаме като поведение е характеристиките на А да бъдат наследени само веднъж. Това става чрез използване на т.н. **виртуални базови класове**. Когато базов клас е обявен за виртуален, всички класове, които го наследяват, **споделят единствено негово копие**.
+
+Обявяваме класа A за виртуален базов клас по следния начин:
+```c++
+// Syntax 1
+class B : virtual public A 
 {
-	// ...
-	virtual Dog* clone() const override
-	{
-		return new Huskita(*this);
-	}
-};
-struct Poodle : Dog
-{
-	// ...
-	virtual Dog* clone() const override
-	{
-		return new Poodle(*this);
-	}
 };
 
-void DogsCollection::copyFrom(const DogsCollection& other)
+// Syntax 2
+class C : public virtual A
 {
-	capacity = other.capacity;
-	count = other.count;
+};
+``` 
 
-	dogs = new Dog * [capacity];
-	for (size_t i = 0; i < count; i++)
-		dogs[i] = other.dogs[i]->clone();
-}
+![alt_text](https://github.com/MariaGrozdeva/Object-oriented_programming_FMI/blob/main/Sem_13/images/Multiple_Inheritance1.png)
 
+```c++
+struct A { int a = 4; };
+struct B : virtual A {};
+struct C : virtual A {};
+
+struct D : B, C 
+{
+	void f()
+	{
+		a++; // OK! No ambiguity!
+	}
+};
+```
+
+![alt_text](https://github.com/MariaGrozdeva/Object-oriented_programming_FMI/blob/main/Sem_13/images/Multiple_Inheritance2.png)
+
+❗ Конструкторите с параметри на виртуални класове трябва да се извикват от конструкторите на всички класове, които са техни наследници, а не само от конструкторите на преките им наследници.
+
+```c++
+D::D(...) : B(...), C(...), A(...) {} // We call the constructor of A explicitly.
 ```

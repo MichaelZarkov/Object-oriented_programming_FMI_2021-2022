@@ -1,219 +1,367 @@
-# Шаблони (templates)
+# Виртуални функции. Статично и динамично свързване
 
-**Какво е шаблон?**  
-Функция или клас, която/който работи не с променливи от някакъв дефиниран тип, а с абстрактни променливи, се нарича шаблонна функция/клас.  
-
-**Пример:**
+**Пример за *статично свързване*:**
 ```c++
-template <typename T>
-const T& myMax(const T& lhs, const T& rhs)
-{
-	return lhs < rhs ? rhs : lhs;
-}
-
-int main()
-{
-	std::cout << myMax(24, 22);
-}
-```
-
-Компилаторът генерира т. нар. шаблонна функция, като замества параметрите на шаблона с типовете на съответните фактически параметри.  
-
-:bangbang: Не можем да разделяме шаблонни класове в .h и .cpp файлове. **Трябва да пишем декларацията и дефиницията им в един файл** - например .hpp файл. Причината е следната:  
-
-Да си представим, че имаме следната структура:
-```c++
-template <typename T>
-struct Foo
-{
-    T bar;
-    void doSomething(const T& param);
-};
-```
-Създаваме инстанция от тази структура:
-```c++
-int main()
-{
-	Foo<int> f;
-}
-```
-След като "прочете" този ред, компилаторът ще създаде следния клас:
-```c++
-struct Foo
-{
-    int bar;
-    void doSomething(const int& param);
-};
-```
-Следователно компилаторът трябва да има достъп до дефинициите на функциите, за да може да ги инстанцира с конкретния тип (в случая - int). Ако тези дефиниции са в отделен .cpp файл, компилаторът няма да има достъп до тях и няма да може да ги инстанцира.
-
-# Наследяване (inheritance) - трети принцип на ООП
-
-При създаване на нов клас, който има общи компоненти и поведение с вече дефиниран клас, вместо новият клас да дефинира повторно тези компоненти и поведение, можем да го обявим за наследник на вече съществуващия и да ползваме функционалността на последния.  
-
-**Пример** за наследяване:
-```c++
-class Person
-{
-private:
-	char* name;
-	size_t age;
-
-	// ...
-
-public:
-	void setName(const char* name);
-	void setAge(size_t age);
-
-	const char* getName() const;
-	size_t getAge() const;
-
-	// ...
-};
-
-class Student : public Person
-{
-private:
-	size_t fn;
-
-public:
-	void setFn(size_t fn);
-	size_t getFn() const;
-};
-```
-
-Класът-наследник (Student):
-- съдържа всички член-данни и методи на основните класове (Person);
-- получава достъп до **някои** от наследените компоненти на основните класове (Person).
-
-![alt_text](https://i.ibb.co/PGKjkx3/st.png)
-
-След като Student е наследник на Person, то при създаване на обект от тип Student се създава обект от тип Person, **който е част от обекта** от тип Student.
-
-![al_text](https://i.ibb.co/z40DsMx/Inheritance.png)
-
-## Видове наследяване
-
-- private (по подразбиране)
-- protected
-- public
-
-```c++
-class A
+class Base
 {
 public:
-    int x;
-protected:
-    int y;
-private:
-    int z;
-};
-
-class B : public A
-{
-    // x is public
-    // y is protected
-    // z is not accessible from B
-};
-
-class C : protected A
-{
-    // x is protected
-    // y is protected
-    // z is not accessible from C
-};
-
-class D : private A
-{
-    // x is private
-    // y is private
-    // z is not accessible from D
-};
-```
-
-( **Втора разлика между класове и структури:** Наследяването **при класове е private** по подразбиране, а **при структури - public** по подразбиране. )
-
-## Подаване на базови класове и класове-наследници като параметри на функции
-
-```c++
-class A
-{
-public:
-    int a;
-};
-class B : public A
-{
-public:
-    int b;
-};
-
-void f(A& obj)
-{
-    obj.a++;
-}
-void g(B& obj)
-{
-    obj.b++;
-}
-
-int main()
-{
-    A obj1;
-    B obj2;
-
-    f(obj1); // OK!
-    f(obj2); // OK!
-
-    g(obj2); // OK!
-    // g(obj1); // Error!
-}
-```
-
-**Извод:** Класове-наследници **могат** да бъдат подавани като параметри на функции, които приемат обекти от базовия клас. Обратното е незвъзможно :bangbang:  
-
-Същите правила важат, ако функциите приемат **A\* obj**/**B\* obj**.
-
-## Конструктори и деструктори при наследяване
-
-- Във всеки конструктор на класа-наследник трябва да се оказва кой конструктор да се извика на базовия клас. Ако не е оказано, ще се извика конструкторът по подразбиране на базовия клас **(такъв трябва да има!**).
-
-```c++
-class B : public A
-{
-private:
-	// ...
-
-public:
-	B(...) : A(...) // constructor of A
+	void f() const
 	{
-		// initialize ONLY the data members which are specific for B
+		std::cout << "Base::f()" << std::endl;
 	}
 };
+class Derived : public Base
+{
+public:
+	void f() const
+	{
+		std::cout << "Derived::f()" << std::endl;
+	}
+};
+
+int main()
+{
+	Derived derivedObject;
+
+	Base* pb = &derivedObject;
+	Derived* pd = &derivedObject;
+
+	pb->f();
+	pd->f();
+
+	std::cout << "----------" << std::endl;
+
+	Base& bref = derivedObject;
+	Derived& dref = derivedObject;
+
+	bref.f();
+	dref.f();
+}
 ```
 
-- Деструкторът на наследния клас извиква деструктора на базовия клас. **Първо се трият данните на класа-родител, после на класа-наследник**!
+![alt_text](https://github.com/MariaGrozdeva/Object-oriented_programming_FMI/blob/main/Sem_11/images/StaticBindingExampleOutput.png)
 
-## Копиране при наследяване
+**Пример за *виртуална функция* и *динамично свързване*:**
+```c++
+class Base
+{
+public:
+	virtual void f() const
+	{
+		std::cout << "Base::f()" << std::endl;
+	}
+};
+class Derived : public Base
+{
+public:
+	virtual void f() const override
+	{
+		std::cout << "Derived::f()" << std::endl;
+	}
+};
 
-При разписване на конструктора за копиране и оператора за присовяване на клас-наследник трябва експлицитно да извикваме съответно копиращия конструктор и оператора за присвояване на базовия клас.
+int main()
+{
+	Derived derivedObject;
+
+	Base* pb = &derivedObject;
+	Derived* pd = &derivedObject;
+
+	pb->f();
+	pd->f();
+
+	std::cout << "----------" << std::endl;
+
+	Base& bref = derivedObject;
+	Derived& dref = derivedObject;
+
+	bref.f();
+	dref.f();
+}
+```
+
+![alt_text](https://github.com/MariaGrozdeva/Object-oriented_programming_FMI/blob/main/Sem_11/images/DynamicBindingExampleOutput.png)
+
+❗ **Статично свързване** - методът, който ще се извика, се определя по време на компилация и при всяко изпълнение е един и същ.  
+❗ **Динамично свързване** - методът, който ще се извика, се определя по време на изпълнение на програмата.  
+
+---
+
+# Виртуални таблици и виртуални указатели
 
 ```c++
-B::B(const B& other) : A(other) // copy constructor of A
+class Base
 {
-    copyFrom(other);
-}
+public:
+	virtual void f() const
+	{
+		std::cout << "Base::f()" << std::endl;
+	}
+	virtual void g() const
+	{
+		std::cout << "Base::g()" << std::endl;
+	}
 
-B& B::operator=(const B& other)
+	void nonVirtual() const
+	{
+		std::cout << "Base::nonVirtual()" << std::endl;
+	}
+};
+
+class FirstLevel : public Base
 {
-    if (this != &other)
-    {
-        A::operator=(other); // operator= of A
+public:
+	virtual void f() const override
+	{
+		std::cout << "FirstLevel::f()" << std::endl;
+	}
+	virtual void g() const override
+	{
+		std::cout << "FirstLevel::g()" << std::endl;
+	}
+	virtual void h() const
+	{
+		std::cout << "FirstLevel::h()" << std::endl;
+	}
 
-        free();
-        copyFrom(other);
-    }
-    return *this;
+	void nonVirtual() const
+	{
+		std::cout << "FirstLevel::nonVirtual()" << std::endl;
+	}
+};
+class SecondLevel : public FirstLevel
+{
+public:
+	virtual void f() const override
+	{
+		std::cout << "SecondLevel::f()" << std::endl;
+	}
+};
+class ThirdLevel : public SecondLevel
+{
+public:
+	virtual void h() const override
+	{
+		std::cout << "ThirdLevel::h()" << std::endl;
+	}
+};
+
+int main()
+{
+	Base baseObject;
+	FirstLevel firstLevelObject;
+	SecondLevel secondLevelObject;
+	ThirdLevel thirdLevelObject;
+
+	Base* bp = nullptr;	
+
+	bp = &baseObject;
+	bp->f();
+	bp->g();
+
+	bp = &firstLevelObject;
+	bp->f();
+	bp->g();
+
+	bp = &secondLevelObject;
+	bp->f();
+	bp->g();
+
+	bp = &thirdLevelObject;
+	bp->f();
+	bp->g();
 }
 ```
 
-Разписваме копирането и триенето **само ако наследникът ползва необработена динамична памет** :bangbang:
+Виртуални таблици за създадените класове:
+
+![alt_text](https://github.com/MariaGrozdeva/Object-oriented_programming_FMI/blob/main/Sem_11/images/VirtualTables.png)
+
+---
+
+![alt_text](https://github.com/MariaGrozdeva/Object-oriented_programming_FMI/blob/main/Sem_11/images/VtableVptr.png)
+
+---
+
+Извикване на виртуална функция от **конструктор/деструктор**:  
+
+```c++
+class Base
+{
+public:
+	virtual void f() const
+	{
+		std::cout << "Base::f()" << std::endl;
+	}
+
+	void g() const
+	{
+		f();
+	}
+	Base()
+	{
+		f();
+	}
+	virtual ~Base()
+	{
+		f();
+	}
+};
+class Derived : public Base
+{
+public:
+	virtual void f() const override
+	{
+		std::cout << "Derived::f()" << std::endl;
+	}
+};
+
+int main()
+{
+	Derived der;
+	der.g();
+}
+```
+
+Резултат:  
+
+![alt_text](https://github.com/MariaGrozdeva/Object-oriented_programming_FMI/blob/main/Sem_11/images/ConstrDestrCallingVirtualMethods.png)
+
+ ---
+ 
+# Полиморфизъм - четвърти принцип на ООП
+
+Едни и същи действия се реализират по различен начин в зависимост от обектите, върху които се прилагат.
+- Действията се наричат полиморфни;
+- Полиморфизмът се реализира чрез виртуални функции;
+- Класовете, върху които ще се прилагат полиморфни действия, трябва да имат общ родител или прародител, т.е. да са наследници на един и същи клас;
+- В този общ родител се дефинира виртуален метод, съответстващ на полиморфното действие;
+- Всеки клас-наследник предефинира или не виртуалния метод;
+- Активирането става чрез указател/референция от базовия клас.
+
+:bangbang::bangbang: При полиморфна йерархия ще изтриваме обектите чрез указатели от базовия клас. За да се извикват правилните деструкори, задължително **деструкторът на базовия клас** трябва е деклариран като виртуален!
+
+**Пример за полиморфизъм:**
+```c++
+class Animal
+{
+public:
+	virtual void sound() const
+	{
+		std::cout << "Undefined sound!" << std::endl;
+	}
+
+	virtual ~Animal() {}
+};
+
+class Dog : public Animal
+{
+public:
+	void sound() const override
+	{
+		std::cout << "Bark bark" << std::endl;
+	}
+};
+class Cat : public Animal
+{
+public:
+	void sound() const override
+	{
+		std::cout << "Meow meow" << std::endl;
+	}
+};
+class Cow : public Animal
+{
+public:
+	void sound() const override
+	{
+		std::cout << "Moo moo" << std::endl;
+	}
+};
+
+int main()
+{
+	Animal** animals = new Animal * [4];
+
+	animals[0] = new Dog();
+	animals[1] = new Cat();
+	animals[2] = new Cow();
+	animals[3] = new Animal();
+
+	animals[0]->sound();
+	animals[1]->sound();
+	animals[2]->sound();
+	animals[3]->sound(); // Undefined sound (not good - we don't want to be able to create objects of type Animal – it should just be a base for the others)
+
+	delete animals[0], animals[1], animals[2], animals[3];
+	delete[] animals;
+}
+```
+
+---
+
+# Абстрактни класове
+
+**Чисто виртуална функция (pure virtual)** - функция, която ни освобождава от задължението да й предоставим дефиниция.  
+
+Клас, в който има поне една чиста виртуална функция, се нарича **абстрактен клас**.  
+
+Абстрактните класове са предназначени единствено за наследяване и не може да създаваме обекти от тях. Във всеки наследник сме задължени да разпишем дефиниция на чисто виртуалните методи. Ако някой наследник няма собствена имплементация, то и той става абстрактен клас.  
+
+**Пример (класът Animal е абстрактен, защото методът sound() е pure virtual, както и класът Mouse, защото не е разписал дефиниция на sound()):**
+```c++
+class Animal
+{
+public:
+	virtual void sound() const = 0;
+	virtual ~Animal() = default;
+};
+
+class Dog : public Animal
+{
+public:
+	void sound() const override
+	{
+		std::cout << "Bark bark" << std::endl;
+	}
+};
+class Cat : public Animal
+{
+public:
+	void sound() const override
+	{
+		std::cout << "Meow meow" << std::endl;
+	}
+};
+class Cow : public Animal
+{
+public:
+	void sound() const override
+	{
+		std::cout << "Moo moo" << std::endl;
+	}
+};
+
+class Mouse : public Animal
+{
+};
+
+int main()
+{
+	// Animal* pa = new Animal(); // Error! Animal is an abstract class!
+	// Animal* pm = new Mouse(); // Error! Mouse is also an abstract class!
+
+	Animal** animals = new Animal * [3];
+
+	animals[0] = new Dog();
+	animals[1] = new Cat();
+	animals[2] = new Cow();
+
+	animals[0]->sound();
+	animals[1]->sound();
+	animals[2]->sound();
+
+	delete animals[0], animals[1], animals[2];
+	delete[] animals;
+}
+```
